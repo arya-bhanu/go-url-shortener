@@ -42,7 +42,10 @@ func ShortenUrlHandler(c *fiber.Ctx) error {
 	}
 
 	// enforce http
-	validUrl := helpers.EnforceHTTP(body.URL)
+	validUrl, err := helpers.EnforceHTTP(body.URL)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
 
 	return nil
 }

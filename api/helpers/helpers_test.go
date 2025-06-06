@@ -5,6 +5,38 @@ import (
 	"testing"
 )
 
+func TestEnforceHTTP(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectError bool
+	}{
+		{"NoPrefix", "example.com", "http://example.com", false},
+		{"WithHTTP", "http://example.com", "http://example.com", false},
+		{"WithHTTPS", "https://example.com", "https://example.com", false},
+		{"EmptyString", "", "", true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := EnforceHTTP(test.input)
+			if test.expectError {
+				if err == nil {
+					t.Errorf("Expected error for input %q, got nil", test.input)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Did not expect error for input %q, got %v", test.input, err)
+				}
+				if result != test.expected {
+					t.Errorf("EnforceHTTP(%q) = %q; want %q", test.input, result, test.expected)
+				}
+			}
+		})
+	}
+}
+
 func TestRemoveDomainError(t *testing.T) {
 	appDomain := "localhost:9000"
 	os.Setenv("APP_DOMAIN", appDomain)

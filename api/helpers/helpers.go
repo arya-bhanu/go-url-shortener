@@ -6,11 +6,14 @@ import (
 	"strings"
 )
 
-func EnforceHTTP(url string) string {
-	if !strings.HasPrefix(url, "http") {
-		return fmt.Sprintf("http://%s", url)
+func EnforceHTTP(url string) (string, error) {
+	if url == "" {
+		return "", fmt.Errorf("url cannot be empty")
 	}
-	return url
+	if !strings.HasPrefix(url, "http") {
+		return fmt.Sprintf("http://%s", url), nil
+	}
+	return url, nil
 }
 
 // prevent users to use server domain, ex: localhost:9000
