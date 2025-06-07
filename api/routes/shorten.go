@@ -1,11 +1,17 @@
 package routes
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
 
+	"github.com/arya-bhanu/go-url-shortener/database"
 	"github.com/arya-bhanu/go-url-shortener/helpers"
 )
 
@@ -30,6 +36,29 @@ func ShortenUrlHandler(c *fiber.Ctx) error {
 	}
 
 	// implement rate limiting
+	rDb := database.CreateClientRedis(2)
+	defer rDb.Close()
+	val, err := rDb.Get(database.CtxDb, c.IP()).Result()
+
+	if err != nil {
+		if err == redis.Nil {
+			_ = rDb.Set(database.CtxDb, c.IP(), os.Getenv("API_QUOTA"), 30*time.Minute)
+		} else {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": fmt.Sprintf("something wrong with redis: %s", err.Error()),
+			})
+		}
+	} else {
+		intVal, err := strconv.Atoi(val)
+		if err != nil {
+			log.Fatalf("failed convert string into integer: %s\n", err.Error())
+		}
+		if intVal <= 0 {
+			c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "to many request for processing the url",
+			})
+		}
+	}
 
 	// check the url, is it valid url
 	if ok := govalidator.IsURL(body.URL); !ok {
@@ -47,5 +76,10 @@ func ShortenUrlHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	body.URL = validUrl
+
+	// storing the url in redis database
+
+	rDb.Decr(database.CtxDb, c.IP())
 	return nil
 }
